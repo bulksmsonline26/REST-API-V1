@@ -81,7 +81,45 @@ To ensure a high quality of service for all customers, the BulkSMSOnline API app
 
 ---
 
-## 1. Send SMS
+## 1. Generate REST API Token
+
+Generate a temporary REST API token using your BulkSMSOnline username and password. Use this token when calling the REST API by passing it in the `token` HTTP header.
+
+```bash
+GET https://api.bulksmsonline.co/rest/api/v1/sms/gettoken/username/{YourUsername}/password/{YourPassword}
+```
+
+|Parameter	|Location	|Required	|Description|
+|-----------|---------|---------|-----------|
+|username | Path | Yes | Your account username or registered mobile number|
+|password | Path | Yes | Your account password|
+
+### Successful Token Response
+
+```json
+{
+  "token": "YOUR_GENERATED_REST_TOKEN"
+}
+```
+
+### Generate Code Response Codes
+
+The token endpoint may return the following HTTP status codes.
+
+|HTTP Status	|Code	|Meaning	|Description|
+|-------------|-----|-------------|----------------------------|
+| 200 | `ok` | Success | Returns the newly generated REST API token|
+| 401 | `Unauthorized` | Unauthorized | The provided username or password is incorrect |
+| 402  | `Payment Required` | Payment Required | The account has zero balance or the account/service has expired |
+| 402  | `Payment Required` | Forbidden / Invalid Action | The request contains an invalid action or the account is not allowed to perform the action |
+| 404 | `Not Found` | 	Invalid Path | The requested endpoint path is invalid |
+| 405 | `Method Not Allowed` | Wrong Method | The endpoint was called using an unsupported HTTP method|
+| 500 | `Internal Server Error` | Server Error | An unexpected server-side error occurred|
+| 503 | `Service Unavailable` | Service unavailable | The service is temporarily unavailable |
+
+---
+
+## 2. Send SMS
 
 The Send SMS API gives you a powerful, flexible way to embed SMS messaging directly into your apps, sites, or services. With just a handful of lines, you can send text messages to mobile phones worldwide, making it a go‑to tool for any business that wants to improve customer, employee, or user communications.
 
@@ -253,3 +291,288 @@ curl -X POST "https://api.bulksmsonline.co/rest/api/v1/sms/send/" \
 
 ---
 
+### Example 4: Bulk Sending (Multiple Recipients)
+
+This example demonstrates broadcasting one message to up to 30 recipients in a single API call. Simply pass a comma‑separated list of phone numbers to the ` to ` parameter.
+
+```bash
+curl -X POST "https://api.bulksmsonline.co/rest/api/v1/sms/send/" \
+  -H "token: YOUR_GENERATED_REST_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d '{
+    "from": "YourBrand",
+    "to": [
+      "1234567890",
+      "1234567891",
+      "1234567892"
+    ],
+    "type": "Text",
+    "content": "Your SMS message",
+    "sendDateTime": null
+  }'
+```
+
+#### Success Response
+
+```json
+{
+    "status": "OK",
+    "scheduled": "Now",
+    "messageIds": [
+        "OK: 1e1a7c30-a160-429f-9c5a-3251dc1522cc",
+        "OK: 2f2b8d41-b271-430a-ad6b-4362ed2633dd",
+        "OK: 3g3c9e52-c382-441b-be7c-5473fe3744ee"
+    ]
+}
+```
+
+---
+
+### Send SMS Response Codes
+
+The send SMS endpoint may return a response containing a `code` value. The following response codes are used to indicate whether the SMS request was accepted or rejected.
+
+|HTTP Status	|Code	|Description	|Recommended Developer Action|
+|-------------|-----|-------------|----------------------------|
+| 200 | `Success` | SMS request was accepted successfully | No action required. Store the API response for tracking and audit purposes|
+| 400 | `Bad Request` | Invalid parameters were provided in the request | Check the JSON body, required fields, destination numbers, sender ID, and message type|
+| 401 | `Unauthorized` | The REST token is missing, invalid, or expired | Generate a new token and send it using the `token` HTTP header |
+| 404 | `Not Found` | The endpoint path is invalid | Confirm that you are using the correct versioned endpoint URL |
+| 405 | | The HTTP method is not allowed | Use `POST` for sending SMS|
+| 500 | | Internal server error | Retry later. If the issue continues, contact support with the request details|
+| 503 | | Service unavailable | Retry after a short delay |
+
+---
+
+## 3. Account Balance API
+
+Use the Account Balance API to check the available SMS balance for your account. The endpoint supports both **GET** and **POST**, but POST is recommended for better credential privacy.
+
+### Endpoint 
+
+```bash
+https://api.bulksmsonline.co/balance?username=XXXX&password=YYYYY
+```
+
+### Post Example
+
+```bash
+curl -X POST https://api.bulksmsonline.co/balance \
+                              -d "username=XXXX" \
+                              -d "password=YYYYY"
+```
+
+|Parameter | Required | Method | Description|
+|----------|----------|--------|------------|
+| `username` |Yes | 	GET / POST | Your BulkSMSOnline account username|
+| `password` | Yes | GET / POST | Your BulkSMSOnline account password|
+
+### Response Format
+
+The API returns a plain text response. A successful request returns the current account balance. Failed requests return a two-digit response code.
+
+| Response | Status | Description|
+|----------|--------|------------|
+|`125.000` | `Success` | The account was authenticated and the current SMS balance was returned|
+|`00`| `Missing Parameters` | The request must include both `username` and `password`|
+|`01` | `Username Error` | The username parameter is empty|
+|`02` | `Password Error` | The password parameter is empty|
+|`03` | `Username Error` | The username length is invalid. Username must be less than 30 characters|
+|`04` | `Password Error` | The password length is invalid. Password must be less than 20 characters|
+|`05` | `Username Error` | The username contains invalid characters|
+|`06` | `Password Error` | The password contains invalid characters|
+|`07` | `Authentication Failed` | The username/password is incorrect, the account is not active, or the account is not allowed to use this API|
+|`08` | `Invalid Request` | The same parameter was sent more than once or sent in both **GET** and **POST**|
+|`99` | `System Error` | Temporary system error. The request could not be processed due to an internal server or database issue|
+
+**Security note**: *We recommend using POST for this endpoint because it keeps credentials out of the URL, browser history, and most server/proxy access logs.*
+
+---
+
+## 4. MNP Lookup API
+
+Use the MNP Lookup API to check mobile number portability, roaming status, network-level details, and HLR lookup information that can help improve routing decisions, database quality, and delivery cost control.
+
+### Endpoint
+
+The endpoint supports both `GET` and `POST`. POST is recommended because it keeps your credentials out of the URL, browser history, and most server/proxy logs.
+
+```bash
+https://api.bulksmsonline.co/mnp?username=XXXX&password=YYYYY&msisdn=12025550100
+```
+
+### POST Example
+
+```bash
+curl -X POST https://api.bulksmsonline.co/mnp \
+  -d "username=XXXX" \
+  -d "password=YYYYY" \
+  -d "msisdn=12025550100"
+```
+
+### MNP Request Parameters
+
+|Presence | Parameter | Method | Description |
+|---------|-----------|--------|-------------|
+|Mandatory | `username` | GET / POST | Your BulkSMSOnline account username|
+|Mandatory | `password` | GET / POST | Your BulkSMSOnline account password|
+|Mandatory | `msisdn` | GET / POST | Mobile number in international format without a leading `+` or leading `0`. The value must be numeric and between **9 and 15 digits**. *Example:* `12025550100`|
+
+### MNP Success Response
+
+*On success, the API returns a JSON object containing a results array. The result includes the submitted MSISDN, country, operator, number type, MCC/MNC, roaming status, provider status, provider error code/description, and portability status.*
+
+#### Successful Response Example
+
+```json
+{
+            "results": [
+              {
+                "msisdn": "12025550100",
+                "country": "United States",
+                "err_desc": "No Error",
+                "operator": "Example Operator",
+                "type": "mobile",
+                "mccmnc": "310000",
+                "is_roaming": "false",
+                "err_code": "0",
+                "status": "DELIVERED",
+                "is_ported": "false"
+              }
+            ]
+}
+```
+
+#### MNP Response Fields
+
+|Field	|Description |
+|-------|------------|
+|`results`|	An array containing the MNP/HLR lookup result|
+|`msisdn`|	The submitted mobile number returned by the lookup provider|
+|`country`|	The country detected from the number issuing information|
+|`err_desc`|	The provider error description, when returned by the lookup provider|
+|`operator`|	The detected mobile network/operator name|
+|`type`|	The number type returned by the lookup provider, for example mobile or other available type|
+|`mccmnc`|	The combined Mobile Country Code and Mobile Network Code|
+|`is_roaming`|	Indicates whether the number is reported as roaming by the lookup provider|
+|`err_code`|	The provider error code returned with the lookup result|
+|`status`|	The provider status returned for the lookup request|
+|`is_ported`|	Indicates whether the number is reported as ported by the lookup provider|
+
+### MNP Error Codes
+
+|Response	|Status	|Description|
+|---------|-------|-----------|
+|`00`|	Missing Parameters|	No parameters were submitted|
+|`01`|	Username Error|	The username parameter is missing or empty|
+|`02`|	Password Error|	The password parameter is missing or empty|
+|`03`|	MSISDN Error|	The MSISDN parameter is missing or empty|
+|`04`|	Invalid MSISDN|	The MSISDN format is invalid. It must be numeric, must not start with `0`, and must be between **9 and 15 digits**|
+|`05`|	Username Error|	The username length is invalid. Username must be less than `30` characters|
+|`06`|	Password Error|	The password length is invalid. Password must be less than `20` characters|
+|`07`|	Invalid Characters|	Invalid characters were detected in one or more request parameters|
+|`08`|	Invalid Request|	A parameter was sent more than once or sent in both GET and POST|
+|`09`|	Authentication Failed|	Authentication failed. The username/password is incorrect, the account is not active, the account is a demo account, or the account is not allowed to use this API|
+|`10`|	Insufficient Credits|	The account does not have enough available balance to complete the MNP lookup|
+|`12`|	Provider Error|	The MNP/HLR provider did not return a valid response, returned an empty response, or the provider response could not be processed|
+|`99`|	System Error|	Temporary system error. The request could not be processed due to an internal server, database, reporting, or routing issue. Please retry later|
+
+---
+
+## 5. MNV Number Validation API
+
+Use the MNV API to validate mobile numbers, improve contact database quality, identify invalid entries, and reduce wasted SMS attempts caused by incorrectly formatted or unsupported numbers.
+
+### Endpoint
+
+*The endpoint supports both **GET** and **POST**. POST is recommended because it keeps your credentials out of the URL, browser history, and most server/proxy logs.*
+
+```bash
+https://api.bulksmsonline.co/mnv?username=XXXX&password=YYYYY&msisdn=12025550100
+```
+
+```bash
+curl -X POST https://api.bulksmsonline.co/mnv \
+  -d "username=XXXX" \
+  -d "password=YYYYY" \
+  -d "msisdn=12025550100"
+```
+
+### MNV Request Parameters
+
+
+|Presence | Parameter | Method | Description |
+|---------|-----------|--------|-------------|
+|Mandatory | `username` | GET / POST | Your BulkSMSOnline account username|
+|Mandatory | `password` | GET / POST | Your BulkSMSOnline account password|
+|Mandatory | `msisdn` | GET / POST | Mobile number in international format without a leading `+` or leading `0`. The value must be numeric and between **9 and 15 digits**. *Example:* `12025550100`|
+
+### MNV Success Response
+
+*On success, the API returns a JSON object containing the detected country, network, operator, MCC/MNC, number type, network type, and the submitted MSISDN.*
+
+#### Successful Response Example
+
+```json
+{
+            "Country": "United States",
+            "ISO3166_2": "US",
+            "CC": "1",
+            "NetName": "Example Network",
+            "MCC": "310",
+            "MNC": "000",
+            "OPERATOR": "Example Operator",
+            "Type": "Mobile",
+            "NetType": "GSM",
+            "MSISDN": "12025550100"
+}
+```
+
+#### MNV Response Fields
+
+|Field	|Description |
+|-------|------------|
+|`Country`|	The detected country name for the submitted MSISDN|
+|`ISO3166_2`|	The two-letter ISO country code|
+|`CC`|	The country calling code|
+|`NetName`|	The detected network name|
+|`MCC`|	The Mobile Country Code|
+|`MNC`|	The Mobile Network Code|
+|`OPERATOR`|	The detected mobile operator name|
+|`Type`|	The number type returned by the validation database|
+|`NetType`|	The detected network type, when available|
+|`MSISDN`|	The submitted mobile number|
+
+### MNV Error Codes
+
+Failed requests return a plain text response code. These codes help you identify whether the issue is related to request format, authentication, balance, number validation, or a temporary system error.
+
+|Response	|Status	|Description|
+|---------|-------|-----------|
+|`00`|	Missing Parameters|	No parameters were submitted|
+|`01`|	Username Error|	The username parameter is missing or empty|
+|`02`|	Password Error|	The password parameter is missing or empty|
+|`03`|	MSISDN Error|	The MSISDN parameter is missing or empty|
+|`04`|	Invalid MSISDN|	The MSISDN format is invalid. It must be numeric, must not start with `0`, and must be between **9 and 15 digits**|
+|`05`|	Username Error|	The username length is invalid. Username must be less than `30` characters|
+|`06`|	Password Error|	The password length is invalid. Password must be less than `20` characters|
+|`07`|	Invalid Characters|	Invalid characters were detected in one or more request parameters|
+|`08`|	Invalid Request|	A parameter was sent more than once or sent in both GET and POST|
+|`09`|	Authentication Failed|	Authentication failed. The username/password is incorrect, the account is not active, the account is a demo account, or the account is not allowed to use this API|
+|`10`|	Insufficient Credits|	The account does not have enough available balance to complete the MNP lookup|
+|`11`|  No MNV Data|	The number format is valid, but no MNV data was found for the submitted MSISDN|
+|`99`|	System Error|	Temporary system error. The request could not be processed due to an internal server, database, reporting, or routing issue. Please retry later|
+
+**Billing note:** *The MNV lookup cost is deducted only after the number format is accepted, the account is authenticated, sufficient credits are available, and MNV data is successfully found.*
+
+---
+
+## Best Practices
+
+- **Use server-side calls only**: Do not call SMS APIs directly from public browser JavaScript.
+- **URL encode messages**: Encode message content and special characters correctly before sending.
+- **Store message IDs**: Save returned message IDs to match delivery reports later.
+- **Handle rate limits**: Retry safely with backoff when throttling or temporary service errors occur.
+- **Validate numbers**: Use MNV and MNP lookup where needed to improve routing and reduce failed sends.
+- **Log API responses**: Keep request IDs, message IDs, responses, and callback payloads for support and reconciliation.
