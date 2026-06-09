@@ -1,0 +1,63 @@
+using System.Net.Http.Headers;
+    using System.Net.Http.Json;
+    using System.Text.Json.Serialization;
+    
+    var username = Environment.GetEnvironmentVariable("BULKSMS_USERNAME") ?? "YOUR_USERNAME";
+    var password = Environment.GetEnvironmentVariable("BULKSMS_PASSWORD") ?? "YOUR_PASSWORD";
+    
+    var baseUrl = "https://api.bulksmsonline.co/rest/api/v1";
+    
+    using var http = new HttpClient
+    {
+        Timeout = TimeSpan.FromSeconds(30)
+    };
+    
+    var tokenUrl =
+        $"{baseUrl}/sms/gettoken/username/{Uri.EscapeDataString(username)}/password/{Uri.EscapeDataString(password)}";
+    
+    using var tokenResponse = await http.GetAsync(tokenUrl);
+    var tokenBody = await tokenResponse.Content.ReadAsStringAsync();
+    
+    if (!tokenResponse.IsSuccessStatusCode)
+    {
+        throw new HttpRequestException($"Token request failed: {(int)tokenResponse.StatusCode} {tokenBody}");
+    }
+    
+    var tokenResult = await tokenResponse.Content.ReadFromJsonAsync<TokenResponse>();
+    var token = tokenResult?.Token;
+    
+    if (string.IsNullOrWhiteSpace(token))
+    {
+        throw new InvalidOperationException("Token was not returned by REST API.");
+    }
+    
+    var smsPayload = new
+    {
+        from = "YourBrand",
+        to = new[] { "1234567890" },
+        type = "Text",
+        content = "Hello from BulkSMSOnline REST API",
+        sendDateTime = (string?)null
+    };
+    
+    using var sendRequest = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl}/sms/send/")
+    {
+        Content = JsonContent.Create(smsPayload)
+    };
+    
+    sendRequest.Headers.Add("token", token);
+    sendRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+    
+    using var sendResponse = await http.SendAsync(sendRequest);
+    var sendBody = await sendResponse.Content.ReadAsStringAsync();
+    
+    if (!sendResponse.IsSuccessStatusCode)
+    {
+        throw new HttpRequestException($"Send request failed: {(int)sendResponse.StatusCode} {sendBody}");
+    }
+    
+    Console.WriteLine(sendBody);
+    
+    public sealed record TokenResponse(
+        [property: JsonPropertyName("token")] string Token
+    );
