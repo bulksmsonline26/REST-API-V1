@@ -1,0 +1,62 @@
+import java.net.URI;
+    import java.net.URLEncoder;
+    import java.net.http.HttpClient;
+    import java.net.http.HttpRequest;
+    import java.net.http.HttpResponse;
+    import java.nio.charset.StandardCharsets;
+    import java.time.Duration;
+    import java.util.Map;
+    import java.util.stream.Collectors;
+    
+    public class SendHttpSms {
+        public static void main(String[] args) throws Exception {
+            String endpoint = "https://api.bulksmsonline.co/smsapi";
+    
+            Map<String, String> payload = Map.of(
+                "username", getenvOrDefault("BULKSMS_USERNAME", "YOUR_USERNAME"),
+                "password", getenvOrDefault("BULKSMS_PASSWORD", "YOUR_PASSWORD"),
+                "type", "t",
+                "to", "1234567890",
+                "source", "YourBrand",
+                "message", "Hello from BulkSMSOnline"
+            );
+    
+            String formBody = payload.entrySet()
+                .stream()
+                .map(e -> encode(e.getKey()) + "=" + encode(e.getValue()))
+                .collect(Collectors.joining("&"));
+    
+            HttpClient client = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(15))
+                .build();
+    
+            HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(endpoint))
+                .timeout(Duration.ofSeconds(30))
+                .header("Content-Type", "application/x-www-form-urlencoded")
+                .POST(HttpRequest.BodyPublishers.ofString(formBody))
+                .build();
+    
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+    
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                throw new RuntimeException("HTTP " + response.statusCode() + ": " + response.body());
+            }
+    
+            if (response.body().startsWith("OK|")) {
+                String messageId = response.body().split("\\|", 2)[1];
+                System.out.println("Message accepted. ID: " + messageId);
+            } else {
+                System.out.println("API rejected request. Response: " + response.body());
+            }
+        }
+    
+        private static String encode(String value) {
+            return URLEncoder.encode(value, StandardCharsets.UTF_8);
+        }
+    
+        private static String getenvOrDefault(String key, String fallback) {
+            String value = System.getenv(key);
+            return value == null || value.isBlank() ? fallback : value;
+        }
+    }
