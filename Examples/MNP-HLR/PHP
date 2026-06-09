@@ -1,0 +1,42 @@
+<?php
+    
+    $endpoint = 'https://api.bulksmsonline.co/mnp';
+    
+    $payload = [
+        'username' => getenv('BULKSMS_USERNAME') ?: 'YOUR_USERNAME',
+        'password' => getenv('BULKSMS_PASSWORD') ?: 'YOUR_PASSWORD',
+        'msisdn'   => '12025550100'
+    ];
+    
+    $ch = curl_init($endpoint);
+    
+    curl_setopt_array($ch, [
+        CURLOPT_POST           => true,
+        CURLOPT_POSTFIELDS     => http_build_query($payload),
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT        => 30,
+        CURLOPT_HTTPHEADER     => [
+            'Content-Type: application/x-www-form-urlencoded',
+            'Accept: application/json'
+        ],
+    ]);
+    
+    $response = curl_exec($ch);
+    
+    if ($response === false) {
+        throw new RuntimeException('cURL error: ' . curl_error($ch));
+    }
+    
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    
+    if ($httpCode < 200 || $httpCode >= 300) {
+        throw new RuntimeException("HTTP error {$httpCode}: {$response}");
+    }
+    
+    if (str_starts_with(trim($response), '{')) {
+        $data = json_decode($response, true, flags: JSON_THROW_ON_ERROR);
+        print_r($data);
+    } else {
+        echo "MNP lookup error code: {$response}" . PHP_EOL;
+    }
