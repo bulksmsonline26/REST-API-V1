@@ -1,0 +1,87 @@
+import com.fasterxml.jackson.databind.JsonNode;
+    import com.fasterxml.jackson.databind.ObjectMapper;
+    
+    import java.net.URI;
+    import java.net.URLEncoder;
+    import java.net.http.HttpClient;
+    import java.net.http.HttpRequest;
+    import java.net.http.HttpResponse;
+    import java.nio.charset.StandardCharsets;
+    import java.time.Duration;
+    import java.util.List;
+    import java.util.Map;
+    
+    public class SendRestSms {
+        public static void main(String[] args) throws Exception {
+            String username = getenvOrDefault("BULKSMS_USERNAME", "YOUR_USERNAME");
+            String password = getenvOrDefault("BULKSMS_PASSWORD", "YOUR_PASSWORD");
+    
+            String baseUrl = "https://api.bulksmsonline.co/rest/api/v1";
+            ObjectMapper mapper = new ObjectMapper();
+    
+            HttpClient client = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(15))
+                .build();
+    
+            String tokenUrl = baseUrl
+                + "/sms/gettoken/username/" + encodePath(username)
+                + "/password/" + encodePath(password);
+    
+            HttpRequest tokenRequest = HttpRequest.newBuilder()
+                .uri(URI.create(tokenUrl))
+                .timeout(Duration.ofSeconds(30))
+                .GET()
+                .build();
+    
+            HttpResponse<String> tokenResponse =
+                client.send(tokenRequest, HttpResponse.BodyHandlers.ofString());
+    
+            if (tokenResponse.statusCode() < 200 || tokenResponse.statusCode() >= 300) {
+                throw new RuntimeException("Token request failed: " + tokenResponse.body());
+            }
+    
+            JsonNode tokenJson = mapper.readTree(tokenResponse.body());
+            String token = tokenJson.path("token").asText();
+    
+            if (token == null || token.isBlank()) {
+                throw new RuntimeException("Token was not returned by REST API.");
+            }
+    
+            Map<String, Object> smsPayload = Map.of(
+                "from", "YourBrand",
+                "to", List.of("1234567890"),
+                "type", "Text",
+                "content", "Hello from BulkSMSOnline REST API",
+                "sendDateTime", null
+            );
+    
+            String jsonBody = mapper.writeValueAsString(smsPayload);
+    
+            HttpRequest sendRequest = HttpRequest.newBuilder()
+                .uri(URI.create(baseUrl + "/sms/send/"))
+                .timeout(Duration.ofSeconds(30))
+                .header("token", token)
+                .header("Content-Type", "application/json")
+                .header("Accept", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
+                .build();
+    
+            HttpResponse<String> sendResponse =
+                client.send(sendRequest, HttpResponse.BodyHandlers.ofString());
+    
+            if (sendResponse.statusCode() < 200 || sendResponse.statusCode() >= 300) {
+                throw new RuntimeException("Send request failed: " + sendResponse.body());
+            }
+    
+            System.out.println(sendResponse.body());
+        }
+    
+        private static String encodePath(String value) {
+            return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
+        }
+    
+        private static String getenvOrDefault(String key, String fallback) {
+            String value = System.getenv(key);
+            return value == null || value.isBlank() ? fallback : value;
+        }
+    }
