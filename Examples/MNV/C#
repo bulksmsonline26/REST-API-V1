@@ -1,0 +1,35 @@
+using System.Text.Json;
+    
+    var endpoint = "https://api.bulksmsonline.co/mnv";
+    
+    var payload = new Dictionary<string, string>
+    {
+        ["username"] = Environment.GetEnvironmentVariable("BULKSMS_USERNAME") ?? "YOUR_USERNAME",
+        ["password"] = Environment.GetEnvironmentVariable("BULKSMS_PASSWORD") ?? "YOUR_PASSWORD",
+        ["msisdn"] = "12025550100"
+    };
+    
+    using var http = new HttpClient
+    {
+        Timeout = TimeSpan.FromSeconds(30)
+    };
+    
+    using var content = new FormUrlEncodedContent(payload);
+    using var response = await http.PostAsync(endpoint, content);
+    
+    var body = await response.Content.ReadAsStringAsync();
+    
+    if (!response.IsSuccessStatusCode)
+    {
+        throw new HttpRequestException($"HTTP {(int)response.StatusCode}: {body}");
+    }
+    
+    if (body.TrimStart().StartsWith("{", StringComparison.Ordinal))
+    {
+        using var json = JsonDocument.Parse(body);
+        Console.WriteLine(json.RootElement.ToString());
+    }
+    else
+    {
+        Console.WriteLine($"MNV validation error code: {body}");
+    }
