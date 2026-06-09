@@ -1,0 +1,64 @@
+<?php
+    
+    $username = getenv('BULKSMS_USERNAME') ?: 'YOUR_USERNAME';
+    $password = getenv('BULKSMS_PASSWORD') ?: 'YOUR_PASSWORD';
+    
+    $baseUrl = 'https://api.bulksmsonline.co/rest/api/v1';
+    
+    $tokenUrl = $baseUrl
+        . '/sms/gettoken/username/' . rawurlencode($username)
+        . '/password/' . rawurlencode($password);
+    
+    $tokenResponse = requestJson('GET', $tokenUrl);
+    $token = $tokenResponse['token'] ?? null;
+    
+    if (!$token) {
+        throw new RuntimeException('Token was not returned by REST API.');
+    }
+    
+    $smsPayload = [
+        'from'         => 'YourBrand',
+        'to'           => ['1234567890'],
+        'type'         => 'Text',
+        'content'      => 'Hello from BulkSMSOnline REST API',
+        'sendDateTime' => null
+    ];
+    
+    $sendResponse = requestJson('POST', $baseUrl . '/sms/send/', $smsPayload, [
+        'token: ' . $token,
+        'Content-Type: application/json',
+        'Accept: application/json'
+    ]);
+    
+    print_r($sendResponse);
+    
+    function requestJson(string $method, string $url, ?array $payload = null, array $headers = []): array
+    {
+        $ch = curl_init($url);
+    
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 30,
+            CURLOPT_CUSTOMREQUEST  => $method,
+            CURLOPT_HTTPHEADER     => $headers ?: ['Accept: application/json'],
+        ]);
+    
+        if ($payload !== null) {
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload, JSON_THROW_ON_ERROR));
+        }
+    
+        $response = curl_exec($ch);
+    
+        if ($response === false) {
+            throw new RuntimeException('cURL error: ' . curl_error($ch));
+        }
+    
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+    
+        if ($httpCode < 200 || $httpCode >= 300) {
+            throw new RuntimeException("HTTP error {$httpCode}: {$response}");
+        }
+    
+        return json_decode($response, true, flags: JSON_THROW_ON_ERROR);
+    }
