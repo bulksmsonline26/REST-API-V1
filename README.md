@@ -568,6 +568,68 @@ Failed requests return a plain text response code. These codes help you identify
 
 ---
 
+## 6. HTTP SMS API
+
+The HTTP API is the fastest way to send SMS messages using a simple GET or POST request. It is useful for legacy systems, direct server-side integrations, and lightweight notification workflows.
+
+### Endpoint
+
+```bash
+https://api.bulksmsonline.co/smsapi?username=XXXX&password=YYYYY&type=t&to=0000000000&source=sender&message=YourText
+```
+
+### Parameters
+
+|Presence | Parameter | Description |
+|---------|-----------|-------------|
+|Mandatory | `username` | Your BulkSMSOnline account username|
+|Mandatory | `password` | Your BulkSMSOnline account password `Note: If the password contains special characters, spaces, symbols, or reserved URL characters, it must be URL-encoded before being sent via the API.`|
+|Mandatory | `type` | Defines the SMS message type:  -  **`t`**: Plain text message for English/Latin content. The message must be URL-encoded and should use GSM 03.38 character encoding. -  **`u`**: Unicode message for languages such as Arabic, Chinese, or other non-Latin scripts.|
+|Mandatory | `to` | One or more recipient phone numbers, separated by commas. Maximum **30 numbers** per request.|
+|Mandatory | `source` | The sender ID/name that will appear as the SMS sender: **1** Numeric sender ID: maximum **18 digits**. **2** Alphanumeric sender ID: maximum **11 characters**. **3**  Additional restrictions may apply depending on the SMSC or destination network.|
+|Mandatory | `message` | The SMS message body: **1**  For plain text messages, such as English or Latin-based content, the message must be URL-encoded and should use GSM 03.38 character encoding. **2** For Unicode messages, such as Arabic, Chinese, Korean, or other non-Latin languages, our API supports both UTF-16BE text and normal Unicode text. You can send the message normally without converting it to UTF-16BE, as long as the text is properly URL-encoded when sent through a URL/API request.|
+|Optional | `scheduled` | Schedule the SMS to be sent at a future date and time:**1** The date/time must be provided in ISO 8601 format: *`yyyy-MM-ddTHH:mm:ss`* **2** The value must be URL-encoded when sent via API. **3** The scheduled time must be based on the **`UTC-04:00`** timezone.*Example*:`scheduled=2020-01-13T12:49:00`|
+
+### HTTP API Response Codes
+
+The HTTP SMS API returns a response code after each request. A successful request returns **`OK|<MESSAGE_ID>`**. Error responses return an error code that explains why the SMS request was rejected or could not be processed.
+
+**Tip**`: Always store the returned message ID from successful submissions. It can be used later for delivery tracking, reporting, support checks, or matching delivery reports.`
+
+|Response / Error Code	|Meaning	|Description	|Recommended Developer Action|
+|-------------|-----|-------------|----------------------------|
+| `OK-<MESSAGE_ID>` | Message accepted | The SMS request was submitted successfully. The API response includes a unique message ID | Save the returned message ID for delivery tracking, logs, and support reference|
+| `E0002` | Invalid request | The request URL is invalid, or one or more required parameters are missing, empty, or sent in the wrong format | Check the request URL and make sure all required parameters are included correctly|
+| `E0003` | Invalid username or password | The username or password parameter is missing, incorrect, or not formatted properly | Verify the API credentials. If the password contains special characters, URL-encode it before sending the request|
+| `E0004` | Invalid message type | The *`type`* parameter is invalid. Supported values include `t` for plain text SMS and `u`for Unicode SMS. | Send a valid message type according to the message encoding you are using |
+| `E0005` | Invalid message body | The SMS message text is empty, invalid, or not encoded correctly | Make sure the message body is not empty. Plain text messages should be URL-encoded. Unicode messages should be encoded in UTF-16BE|
+| `E0006` |	Invalid recipient number |	The to parameter contains an invalid mobile number or unsupported number format.|	Use international MSISDN format without spaces or invalid characters. For multiple recipients, separate numbers with commas.|
+| `E0007` |	Invalid sender ID	| The *`source`* parameter does not match the allowed sender ID format. Numeric sender IDs can contain up to 15 digits, while alphanumeric sender IDs can contain up to 11 characters.|	Check the sender ID format and confirm that the sender is allowed for the destination country, route, or SMSC.|
+| `E0008` |	Authentication failed |	The API credentials are incorrect, inactive, or not allowed to use the requested API service.|	Verify the account username, password, account status, and API access permissions.|
+| `E0010` |	Internal server error |	The request could not be processed because of a temporary system-side issue.|	Retry after a short time. If the issue continues, contact support with the request URL, timestamp, and account username.|
+| `E0022` |	Insufficient balance	| The account does not have enough SMS credit to submit the message.|	Top up the account balance and retry the request.|
+| `E0033 / HTTP 429` | Rate limit exceeded |	The API sending rate limit has been exceeded. The maximum allowed rate is **30 SMS submissions per second**.|	Reduce the sending speed, queue messages on your side, and retry after a short delay.|
+|`E0044`|	Mobile network not supported	|The destination number belongs to a mobile network that is not currently supported by the selected route or service.|Check the destination network and contact support if you need coverage for this operator or country.|
+
+
+### HTTP Examples
+
+#### Plain Text SMS Example
+*Use `type=t` for English or Latin-based SMS messages. The message value must be URL-encoded before sending.*
+
+```bash
+https://api.bulksmsonline.co/smsapi?username=XXXX&password=YYYYY&type=t&to=00000000&source=YourBrand&message=Hello%20customer%2C%20your%20code%20is%201234
+```
+
+#### Unicode SMS Example
+*Use `type=u` for Unicode messages such as Arabic, Chinese, or other non-Latin languages. The message text must be encoded in UTF-16BE before sending.*
+
+```bash
+https://api.bulksmsonline.co/smsapi?username=XXXX&password=YYYYY&type=u&to=00000000&source=YourBrand&message=06450631062D06280627
+```
+
+---
+
 ## Best Practices
 
 - **Use server-side calls only**: Do not call SMS APIs directly from public browser JavaScript.
