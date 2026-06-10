@@ -1,4 +1,4 @@
-# EasySendSMS REST API (v1)
+# BulkSMSOnline APIs (v1)
 
 ## Overview
 
