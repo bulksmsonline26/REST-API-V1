@@ -18,7 +18,7 @@ Clone the repository and run your preferred language example:
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/bulksmsonline26/REST-API-V1.git
+git clone https://github.com/bulksmsonline26/BulkSMSOnline_APIs.git
 
 # 2. Navigate to an example directory (e.g., Python)
 cd REST-API-v1/examples/python
