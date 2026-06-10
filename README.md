@@ -20,14 +20,20 @@ Clone the repository and run your preferred language example:
 # 1. Clone the repository
 git clone https://github.com/bulksmsonline26/BulkSMSOnline_APIs.git
 
-# 2. Navigate to an example directory (e.g., Python)
-cd REST-API-v1/examples/python
+# 2. Navigate to the PHP example directory
+cd BulkSMSOnline_APIs/Examples/HTTP SMS API/PHP
 
 # 3. Follow the instructions in the example's README.md file
-pip install requests
+
+# If the project uses Composer, install dependencies first:
+composer install
+
+# Set your BulkSMSOnline credentials as environment variables
 export BULKSMS_USERNAME='your_actual_username'
 export BULKSMS_PASSWORD='your_actual_password'
-python send_sms.py
+
+# Run the PHP script
+php send_sms.php
 ```
 
 
